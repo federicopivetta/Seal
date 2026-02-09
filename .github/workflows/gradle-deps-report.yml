@@ -1,0 +1,43 @@
+name: Gradle Dependency Report
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scan-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Renovate
+        run: npm install -g renovate
+
+      - name: Run Renovate (Gradle only, JSON output)
+        env:
+          RENOVATE_PLATFORM: github
+          RENOVATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_DRY_RUN: "true"
+          RENOVATE_LOG_LEVEL: info
+        run: |
+          renovate \
+            --platform=github \
+            --dry-run=true \
+            --require-config=false \
+            --print-config=false \
+            --enabled-managers=gradle,gradle-wrapper \
+            --output-file=renovate-report.json \
+            --output-format=json
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-dependency-report
+          path: renovate-report.json
