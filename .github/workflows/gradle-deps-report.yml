@@ -4,22 +4,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  scan-dependencies:
+  scan:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install Renovate
         run: npm install -g renovate
 
-      - name: Run Renovate (Gradle scan)
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Run Renovate
         env:
           RENOVATE_PLATFORM: github
           RENOVATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,7 +35,16 @@ jobs:
             --enabled-managers=gradle,gradle-wrapper \
             2>&1 | tee renovate.log
 
-      - name: Upload dependency report
+      - name: Generate JSON report
+        run: |
+          cat renovate.log \
+          | grep '"depName"' \
+          | grep '"currentVersion"' \
+          | sed 's/.*{//;s/}.*//' \
+          | sed 's/\\//g' \
+          | jq -s '.' > renovate-report.json
+
+      - name: Upload report
         uses: actions/upload-artifact@v4
         with:
           name: gradle-dependency-report
